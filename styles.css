@@ -99,7 +99,7 @@ select {
     flex-direction: column;
     align-items: center;
     width: 100%;
-    max-width: 640px;
+    max-width: 960px;
 }
 
 #game-wrapper h1 {
@@ -111,19 +111,20 @@ select {
     position: relative; 
     border: 4px solid #555;
     width: 100%;
-    max-width: 640px;
+    max-width: 960px;
 }
 
 canvas { 
     background-color: #388E3C; 
     display: block;
-    width: 100% !important;
-    height: auto !important;
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto;
 }
 
 #ui {
     width: 100%;
-    max-width: 640px;
+    max-width: 960px;
     background: rgba(51, 51, 51, 0.8);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);

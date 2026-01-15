@@ -96,10 +96,8 @@ function initSounds() {
 
 // Configuración del juego
 const TILE_SIZE = 40;
-const COLS = 16; 
-const ROWS = 11;
-canvas.width = COLS * TILE_SIZE;
-canvas.height = ROWS * TILE_SIZE;
+let COLS = 16; 
+let ROWS = 11;
 
 // Tipos de tiles
 const EMPTY = 0;
@@ -226,6 +224,27 @@ function initGame() {
 }
 
 /**
+ * Ajusta el tamaño del mapa según el nivel
+ * @param {number} level - Nivel actual
+ */
+function adjustMapSize(level) {
+    if (level === 1) {
+        COLS = 16;
+        ROWS = 11;
+    } else if (level === 2) {
+        COLS = 20;
+        ROWS = 14;
+    } else if (level >= 3) {
+        COLS = 24;
+        ROWS = 16;
+    }
+    
+    // Ajustar canvas al nuevo tamaño
+    canvas.width = COLS * TILE_SIZE;
+    canvas.height = ROWS * TILE_SIZE;
+}
+
+/**
  * Inicia un nivel específico
  * @param {number} level - Número de nivel a iniciar
  */
@@ -234,6 +253,9 @@ function startLevel(level) {
         currentLevel = level;
         gameActive = true;
         document.getElementById('overlay').classList.add('hidden');
+        
+        // Ajustar tamaño del mapa según el nivel
+        adjustMapSize(level);
         
         // Reiniciar timer
         clearInterval(timerInterval);
@@ -488,7 +510,8 @@ function updateUI() {
  * Coloca una bomba en la posición del jugador
  */
 function placeBomb() {
-    if (bombs.length >= 1) return; // Solo una bomba a la vez
+    // Permitir hasta 5 bombas simultáneas
+    if (bombs.filter(b => !b.auto).length >= 5) return;
     
     const c = Math.floor(player.x / TILE_SIZE);
     const r = Math.floor(player.y / TILE_SIZE);
@@ -857,6 +880,20 @@ function createExplosion(bomb) {
                         auto: true // Marca que es una bomba automática
                     };
                     bombs.push(autoBomb);
+                }
+                
+                // 20% de probabilidad de que aparezca un enemigo adicional
+                if (Math.random() < 0.2) {
+                    const enemySpeed = 1.0 + (currentLevel * 0.2);
+                    const newEnemy = {
+                        x: nc * TILE_SIZE + TILE_SIZE / 2,
+                        y: nr * TILE_SIZE + TILE_SIZE / 2,
+                        radius: 12,
+                        dir: Math.floor(Math.random() * 4),
+                        speed: enemySpeed,
+                        alive: true
+                    };
+                    enemies.push(newEnemy);
                 }
                 
                 break;
