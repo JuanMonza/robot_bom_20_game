@@ -115,7 +115,7 @@ let explosions = [];
 let planes = []; // Aviones para recoger
 
 let gameActive = false;
-let timeLeft = 60;
+let timeLeft = 90; // 90 segundos por nivel
 let timerInterval = null;
 let playerLives = 3; // Sistema de vidas
 let maxLives = 3;
@@ -149,54 +149,92 @@ function setupKeyboardListeners() {
  * Inicializa los controles táctiles para móvil
  */
 function setupMobileControls() {
-    // Botones direccionales
-    const dpadButtons = document.querySelectorAll('.dpad .control-btn');
-    dpadButtons.forEach(btn => {
-        const key = btn.getAttribute('data-key');
+    // Configurar Joystick
+    const joystick = document.getElementById('joystick');
+    const joystickBase = document.querySelector('.joystick-base');
+    
+    if (joystick && joystickBase) {
+        let active = false;
+        let currentPos = { x: 0, y: 0 };
         
-        // Touch start - presionar
-        btn.addEventListener('touchstart', (e) => {
+        const handleStart = (e) => {
             e.preventDefault();
-            if (gameActive) keys[key] = true;
-        });
+            active = true;
+        };
         
-        // Touch end - soltar
-        btn.addEventListener('touchend', (e) => {
+        const handleEnd = (e) => {
             e.preventDefault();
-            keys[key] = false;
-        });
+            active = false;
+            
+            // Resetear posición del joystick
+            joystick.style.transform = 'translate(-50%, -50%)';
+            
+            // Resetear todas las teclas
+            keys['ArrowUp'] = false;
+            keys['ArrowDown'] = false;
+            keys['ArrowLeft'] = false;
+            keys['ArrowRight'] = false;
+        };
         
-        // Touch cancel - cancelar
-        btn.addEventListener('touchcancel', (e) => {
+        const handleMove = (e) => {
+            if (!active) return;
             e.preventDefault();
-            keys[key] = false;
-        });
-    });
+            
+            const touch = e.touches ? e.touches[0] : e;
+            const rect = joystickBase.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            // Calcular distancia desde el centro
+            let deltaX = touch.clientX - centerX;
+            let deltaY = touch.clientY - centerY;
+            
+            // Limitar el movimiento al radio del joystick base
+            const maxDistance = 40;
+            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            
+            if (distance > maxDistance) {
+                const angle = Math.atan2(deltaY, deltaX);
+                deltaX = Math.cos(angle) * maxDistance;
+                deltaY = Math.sin(angle) * maxDistance;
+            }
+            
+            // Mover el stick visualmente
+            joystick.style.transform = `translate(calc(-50% + ${deltaX}px), calc(-50% + ${deltaY}px))`;
+            
+            // Determinar direcciones (zona muerta de 15px)
+            const deadZone = 15;
+            
+            keys['ArrowUp'] = deltaY < -deadZone;
+            keys['ArrowDown'] = deltaY > deadZone;
+            keys['ArrowLeft'] = deltaX < -deadZone;
+            keys['ArrowRight'] = deltaX > deadZone;
+        };
+        
+        // Touch events
+        joystickBase.addEventListener('touchstart', handleStart);
+        joystickBase.addEventListener('touchend', handleEnd);
+        joystickBase.addEventListener('touchcancel', handleEnd);
+        joystickBase.addEventListener('touchmove', handleMove);
+        
+        // Mouse events (para testing en PC)
+        joystickBase.addEventListener('mousedown', handleStart);
+        document.addEventListener('mouseup', handleEnd);
+        document.addEventListener('mousemove', handleMove);
+    }
     
     // Botón de bomba
     const bombBtn = document.querySelector('.btn-bomb');
-    bombBtn.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        if (gameActive) placeBomb();
-    });
-    
-    // También agregar soporte para clicks (para testing en PC)
-    dpadButtons.forEach(btn => {
-        const key = btn.getAttribute('data-key');
-        btn.addEventListener('mousedown', () => {
-            if (gameActive) keys[key] = true;
+    if (bombBtn) {
+        bombBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (gameActive) placeBomb();
         });
-        btn.addEventListener('mouseup', () => {
-            keys[key] = false;
+        
+        bombBtn.addEventListener('click', () => {
+            if (gameActive) placeBomb();
         });
-        btn.addEventListener('mouseleave', () => {
-            keys[key] = false;
-        });
-    });
-    
-    bombBtn.addEventListener('click', () => {
-        if (gameActive) placeBomb();
-    });
+    }
 }
 
 /**
@@ -259,7 +297,7 @@ function startLevel(level) {
         
         // Reiniciar timer
         clearInterval(timerInterval);
-        timeLeft = 60;
+        timeLeft = 90; // 90 segundos por nivel
         updateUI();
         
         timerInterval = setInterval(() => {
@@ -399,7 +437,8 @@ function initializeAllies(level) {
  */
 function initializeEnemies(level) {
     enemies = [];
-    const enemyCount = 2 + (level * 2); // Nivel 1=4, Nivel 2=6, Nivel 3=8
+    // Nivel 1=4, Nivel 2=6, Nivel 3+=10 monstruos
+    const enemyCount = level >= 3 ? 10 : (2 + (level * 2));
     const enemySpeed = 1.0 + (level * 0.2); // Velocidad moderada estilo Pac-Man
 
     for (let i = 0; i < enemyCount; i++) {
@@ -425,9 +464,39 @@ function initializeEnemies(level) {
                 dir: Math.floor(Math.random() * 4),
                 speed: enemySpeed,
                 alive: true,
-                moveTimer: 0
+                moveTimer: 0,
+                type: 'monster' // Tipo de enemigo
             };
             enemies.push(enemy);
+        }
+    }
+    
+    // Agregar perros enemigos en TODOS los niveles (más rápidos)
+    const dogCount = 2 + level; // Nivel 1=3, Nivel 2=4, Nivel 3+=5 perros
+    const dogSpeed = enemySpeed * 1.3; // Perros son 30% más rápidos
+    
+    for (let i = 0; i < dogCount; i++) {
+        let dx, dy;
+        let attempts = 0;
+        
+        do {
+            dx = Math.floor(Math.random() * COLS);
+            dy = Math.floor(Math.random() * ROWS);
+            attempts++;
+            if (attempts > 100) break;
+        } while (map[dy][dx] !== EMPTY || (dx < 5 && dy < 5));
+        
+        if (attempts <= 100) {
+            enemies.push({
+                x: dx * TILE_SIZE + TILE_SIZE / 2,
+                y: dy * TILE_SIZE + TILE_SIZE / 2,
+                radius: 12,
+                dir: Math.floor(Math.random() * 4),
+                speed: dogSpeed,
+                alive: true,
+                moveTimer: 0,
+                type: 'dog' // Perro enemigo
+            });
         }
     }
 }
@@ -891,7 +960,8 @@ function createExplosion(bomb) {
                         radius: 12,
                         dir: Math.floor(Math.random() * 4),
                         speed: enemySpeed,
-                        alive: true
+                        alive: true,
+                        type: 'monster'
                     };
                     enemies.push(newEnemy);
                 }
@@ -1191,10 +1261,15 @@ function draw() {
         }
     });
 
-    // Enemigos - Esqueletos animados
+    // Enemigos - Monstruos amarillos y Perros rojos
     enemies.forEach((e, index) => {
         if (e.alive) {
-            drawAnimatedSkeleton(e.x, e.y, gameActive ? Date.now() * 0.01 + index : 0);
+            const time = gameActive ? Date.now() * 0.01 + index : 0;
+            if (e.type === 'dog') {
+                drawAnimatedDog(e.x, e.y, time);
+            } else {
+                drawAnimatedSkeleton(e.x, e.y, time);
+            }
         }
     });
     
@@ -1380,6 +1455,131 @@ function drawAnimatedStewardess(x, y, frame, facing) {
     ctx.arc(-4, -11, 3, 0, Math.PI * 2);
     ctx.arc(4, -11, 3, 0, Math.PI * 2);
     ctx.fill();
+    
+    ctx.restore();
+}
+
+/**
+ * Dibuja un perro enemigo animado
+ * @param {number} x - Posición X
+ * @param {number} y - Posición Y
+ * @param {number} time - Tiempo para animación
+ */
+function drawAnimatedDog(x, y, time) {
+    const bounce = Math.sin(time * 3) * 1;
+    
+    ctx.save();
+    ctx.translate(x, y + bounce);
+    
+    // Sombra
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    ctx.beginPath();
+    ctx.ellipse(0, 18, 12, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Cuerpo del perro con gradiente rojo oscuro
+    const bodyGradient = ctx.createLinearGradient(-10, -5, 10, 5);
+    bodyGradient.addColorStop(0, '#EF5350');
+    bodyGradient.addColorStop(0.5, '#D32F2F');
+    bodyGradient.addColorStop(1, '#B71C1C');
+    
+    ctx.fillStyle = bodyGradient;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 12, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Cabeza del perro
+    const headGradient = ctx.createRadialGradient(-1, -10, 2, 0, -10, 7);
+    headGradient.addColorStop(0, '#F44336');
+    headGradient.addColorStop(0.7, '#E53935');
+    headGradient.addColorStop(1, '#C62828');
+    
+    ctx.fillStyle = headGradient;
+    ctx.beginPath();
+    ctx.arc(0, -10, 7, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Orejas puntiagudas
+    ctx.fillStyle = '#B71C1C';
+    ctx.beginPath();
+    ctx.moveTo(-5, -15);
+    ctx.lineTo(-3, -18);
+    ctx.lineTo(-2, -14);
+    ctx.closePath();
+    ctx.fill();
+    
+    ctx.beginPath();
+    ctx.moveTo(5, -15);
+    ctx.lineTo(3, -18);
+    ctx.lineTo(2, -14);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Hocico
+    ctx.fillStyle = '#D32F2F';
+    ctx.beginPath();
+    ctx.ellipse(0, -7, 4, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Nariz negra
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.arc(0, -8, 2, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Ojos rojos brillantes (agresivos)
+    const eyeGlow = 0.7 + Math.sin(time * 6) * 0.3;
+    ctx.fillStyle = `rgba(255, 0, 0, ${eyeGlow})`;
+    ctx.beginPath();
+    ctx.arc(-3, -12, 2, 0, Math.PI * 2);
+    ctx.arc(3, -12, 2, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Pupilas
+    ctx.fillStyle = '#FF0000';
+    ctx.beginPath();
+    ctx.arc(-3, -12, 1.2, 0, Math.PI * 2);
+    ctx.arc(3, -12, 1.2, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Cola
+    const tailWag = Math.sin(time * 5) * 8;
+    ctx.strokeStyle = '#D32F2F';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(10, 0);
+    ctx.quadraticCurveTo(13 + tailWag, -2, 15 + tailWag, 2);
+    ctx.stroke();
+    
+    // Patas (4 patas corriendo)
+    const legMove = Math.sin(time * 4) * 3;
+    ctx.strokeStyle = '#C62828';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    
+    // Pata delantera izquierda
+    ctx.beginPath();
+    ctx.moveTo(-6, 5);
+    ctx.lineTo(-7, 12 + legMove);
+    ctx.stroke();
+    
+    // Pata delantera derecha
+    ctx.beginPath();
+    ctx.moveTo(-2, 5);
+    ctx.lineTo(-3, 12 - legMove);
+    ctx.stroke();
+    
+    // Pata trasera izquierda
+    ctx.beginPath();
+    ctx.moveTo(4, 5);
+    ctx.lineTo(5, 12 - legMove);
+    ctx.stroke();
+    
+    // Pata trasera derecha
+    ctx.beginPath();
+    ctx.moveTo(8, 5);
+    ctx.lineTo(9, 12 + legMove);
+    ctx.stroke();
     
     ctx.restore();
 }
