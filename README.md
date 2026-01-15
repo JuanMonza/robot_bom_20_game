@@ -1,6 +1,6 @@
 # robot_bom_20_game
 
-🎮 **Juego Bomberman Jardines** - Versión moderna con temática de aviación
+**Juego Bomberman Jardines** - Versión moderna con temática de aviación
 
 ## Descripción
 
@@ -8,13 +8,13 @@ Juego estilo Bomberman desarrollado con HTML5 Canvas y JavaScript vanilla. Inclu
 
 ## Características
 
-- ✈️ **Personajes temáticos**: Azafata, Azafato y Piloto
-- 👾 **Enemigos inteligentes**: Monstruos amarillos con IA estilo Pac-Man
-- 🤖 **Aliados**: Robot azul que ayuda desde el nivel 3
-- 💣 **Bombas automáticas**: 30% de probabilidad al destruir bloques
-- 🎨 **Efectos realistas**: Explosiones circulares, bloques estilo ladrillo
-- 📱 **Controles móviles**: Soporte para dispositivos táctiles
-- ⚖️ **Cumplimiento legal**: Políticas de datos según legislación colombiana
+- **Personajes temáticos**: Azafata, Azafato y Piloto
+- **Enemigos inteligentes**: Monstruos amarillos con IA estilo Pac-Man
+- **Aliados**: Robot azul que ayuda desde el nivel 3
+- **Bombas automáticas**: 30% de probabilidad al destruir bloques
+- **Efectos realistas**: Explosiones circulares, bloques estilo ladrillo
+- **Controles móviles**: Soporte para dispositivos táctiles
+- **Cumplimiento legal**: Políticas de datos según legislación colombiana
 
 ## Tecnologías
 
